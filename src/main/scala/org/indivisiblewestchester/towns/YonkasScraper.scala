@@ -1,5 +1,7 @@
 package org.indivisiblewestchester.towns
 
+import org.indivisiblewestchester.Util
+
 import scala.collection.JavaConversions._
 
 import java.io.BufferedWriter
@@ -62,6 +64,26 @@ object YonkasScraper {
     } 
   }	
 
+  val summaryPat = """(?s).*SUMMARY:\s*([^\r\n]*).*?""".r
+  val startDatePat = """(?s).*DTSTART:\s*([^\r\n]*).*?""".r
+
+  def insertUID(evStr: String) = {
+    val summary = evStr match {
+      case summaryPat(summary) => summary.trim
+      case _ => throw new IllegalStateException("evStr = "+evStr)
+    }
+    val startDate = evStr match {
+      case startDatePat(start) => start.trim
+      case _ => throw new IllegalStateException("evStr = "+evStr)
+    }
+    val uidStr = "UID:" + Util.despace(startDate) + "-" + Util.despace(summary)
+    VeventEndPat.replaceAllIn(evStr, _ match {
+      case VeventEndPat(end, rest) =>
+                     (uidStr + "\n" + end + rest)
+      case _ => throw new IllegalStateException("evStr = "+evStr)
+    } )
+  }
+
   def main( args:Array[String] ): Unit = {
     val iCalOut = args(0)
 
@@ -76,7 +98,9 @@ object YonkasScraper {
     val headlessIcals = fullIcals.head +: stripBeforeVevent(fullIcals.tail)
     val fixedIcals = stripAfterVevent(headlessIcals.init) :+ headlessIcals.last
 
-    val finalIcals = fixedIcals.map(insertCategory)
+    val catIcals = fixedIcals.map(insertCategory)
+
+    val finalIcals = catIcals.map(insertUID)
 
     val out_writer =
       new BufferedWriter(new OutputStreamWriter(new FileOutputStream(iCalOut)))
