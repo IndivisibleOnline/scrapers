@@ -6,6 +6,9 @@ import java.io.BufferedWriter
 import java.io.FileOutputStream
 import java.io.OutputStreamWriter
 
+import java.time.format.DateTimeFormatter
+import java.time.LocalDateTime
+
 import org.indivisiblewestchester.Util
 
 object MamaroneckScraper {
@@ -28,6 +31,34 @@ object MamaroneckScraper {
   def meetingToMap(meeting: org.jsoup.nodes.Element) = {
     val summary = meeting.select("a[id^=eventTitle]").text
     val start = stripDatePunc(meeting.select("span[itemprop=startDate]").text)
+
+    val dateStr = meeting.select("[class=date] span").filter(
+        x => !x.text.contains("@") && x.text.contains("-") ).map(_.text).mkString
+    val endSrcStr = dateStr.dropWhile(_ != '-').dropWhile(
+        x => x.isWhitespace || x == '-').trim
+    val endMap = if (endSrcStr.size < 6) {
+        Map()
+      } else {
+        val startDate = start.takeWhile(!_.toUpper.equals('T'))
+        val endDateTime =  startDate + " " + endSrcStr
+	       val parseDateFormat1 =  "uuuuMMdd h:m a"
+        val parseFormatter1 = DateTimeFormatter.ofPattern(parseDateFormat1)
+	       val parseDateFormat2 =  "MMMM d, uuuu  h:m a"
+        val parseFormatter2 = DateTimeFormatter.ofPattern(parseDateFormat2)
+        val outFormatter = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss")
+	       try {
+          Map( "DTEND" -> outFormatter.format(parseFormatter1.parse(endDateTime)) )
+		 } catch {
+		   case _ : Throwable => {
+		       try {
+              Map( "DTEND" -> outFormatter.format(parseFormatter2.parse(endSrcStr)) )
+            } catch {
+		         case _ : Throwable => Map()
+			     }
+			       }
+        }
+      }
+
     val eventIdStr = meeting.select("a[id^=calendarEvent]").get(0).id
     val eventIdPat = "^calendarEvent([0-9]+)$".r
     val eventURLMap = 
@@ -37,7 +68,7 @@ object MamaroneckScraper {
 	case _ => Map()
     }
 
-    eventURLMap ++ Map[String,String](
+    eventURLMap ++ endMap ++ Map[String,String](
       "DTSTART" -> start,
       "SUMMARY" -> summary,
       "UID" -> (Util.despace(start) + "-" + Util.despace(summary)),
@@ -65,12 +96,22 @@ object MamaroneckScraper {
     val startDoc = Util.urlToDoc(baseUrl)
     val numMonths = 3
 
-    val yearMonthPat = """.*&year=(\d+)&month=(\d+)&.*""".r
+    val yearMonthHrefPat = """.*&year=(\d+)&month=(\d+)&.*""".r
+    val yearMonthOnClickPat = (""".*eventDetails\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,"""
+                                + """\s*(\d+)\s*,\s*(\d+)\s*\s*\).*""").r
+
     val (startYearStr, startMonthStr) =
       (startDoc.select("table[summary=Calendar Display]").select("a")
         ).get(0).attr("href") match {
-          case yearMonthPat(year, month) => (year, month)
+          case yearMonthHrefPat(year, month) => (year, month)
+	  case _ => {
+	    (startDoc.select("table[summary=Calendar Display]").select("a")
+	      ).get(0).attr("onclick") match {
+	        case yearMonthOnClickPat(eid, day, month, year, unk) => (year, month)
+	      }
+	  }
     }
+
     val monthYears = getNMonths(
     	(startMonthStr.toInt, startYearStr.toInt), numMonths)
 
