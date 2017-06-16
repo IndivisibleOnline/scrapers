@@ -100,7 +100,9 @@ object YonkasScraper {
 
     val catIcals = fixedIcals.map(insertCategory)
 
-    val finalIcals = catIcals.map(insertUID)
+    val uidIcals = catIcals.map(insertUID)
+    val finalIcals = uidIcals.map(
+       """(?s)(.*SUMMARY:)(.*)""".r replaceAllIn(_, "$1Yonkers: $2"))
 
     val out_writer =
       new BufferedWriter(new OutputStreamWriter(new FileOutputStream(iCalOut)))

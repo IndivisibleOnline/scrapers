@@ -71,7 +71,7 @@ object WhitePlainsScraper {
 
     endMap ++ Map[String,String](
       "DTSTART" -> start,
-      "SUMMARY" -> summary,
+      "SUMMARY" -> ("White Plains: " + summary),
       "UID" -> (Util.despace(start) + "-" + Util.despace(summary)),
       "LOCATION" -> meeting.select("span[itemprop=location]").map(
                             _.select("*")).map(_.map(_.textNodes())).flatten.flatten.map(

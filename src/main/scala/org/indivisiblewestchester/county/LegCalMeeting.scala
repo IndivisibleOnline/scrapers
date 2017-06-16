@@ -103,7 +103,7 @@ case class LegCalMeeting(var title: String = "",
     if (deets.size > 0)
       desc.append(detailPage.select("table[id=MeetingDetail]").text.take(1000))
 
-    Map("SUMMARY"-> title,
+    Map("SUMMARY"-> ("Westchester: " + title),
         "DTSTART"-> startDate,
         "CATEGORIES"->  cats, 
 	"URL"-> fullUrl,

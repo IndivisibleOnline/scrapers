@@ -50,7 +50,7 @@ def eventPageToiCal(srcUrl: String,
     buf.append("BEGIN:VEVENT\n")
 
     val name = eventDoc.select("td.contentheading").text
-        buf.append("SUMMARY:").append(Util.tidyForIcal(name)).append("\n")
+        buf.append("SUMMARY:Westchester: ").append(Util.tidyForIcal(name)).append("\n")
 
     val dateElts =
       eventDoc.select("span[style*=3d4699]").text.split("\\xa0").map(
